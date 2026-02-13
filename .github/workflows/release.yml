@@ -123,7 +123,7 @@ jobs:
           find artifacts -type f \( -name "gosh*" -o -name "*.tar.gz" -o -name "*.zip" \) -exec cp {} release_assets/ \;
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: release_assets/*
           body_path: release_notes.md
