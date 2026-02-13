@@ -9,6 +9,7 @@ vendor/
 # Test outputs
 *.test
 coverage.out
+coverage.html
 
 # IDE
 .idea/
@@ -29,3 +30,12 @@ Thumbs.db
 # Generated
 dist/
 build/
+bin/
+
+# CI/CD artifacts
+results.sarif
+artifacts/
+release_assets/
+
+# Docker
+.docker/

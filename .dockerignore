@@ -1,0 +1,15 @@
+.git
+.gitignore
+.github
+.gosh
+README.md
+LICENSE
+PLAN.md
+IMPLEMENTATION_SUMMARY.md
+CHANGELOG.md
+*.md
+.env
+.env.local
+coverage.out
+*.test
+gosh
