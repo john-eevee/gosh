@@ -33,15 +33,19 @@ func (t *Template) SetEnvVars(vars map[string]string) {
 }
 
 // ExtractPathVars extracts all path variables from the template
+// Only matches {var} pattern, not ${var}
 func (t *Template) ExtractPathVars() []string {
-	re := regexp.MustCompile(`\{([^}]+)\}`)
+	re := regexp.MustCompile(`[^$]\{([^}]+)\}|\A\{([^}]+)\}`)
 	matches := re.FindAllStringSubmatch(t.text, -1)
 
 	var vars []string
 	seen := make(map[string]bool)
 	for _, match := range matches {
 		varName := match[1]
-		if !seen[varName] {
+		if varName == "" {
+			varName = match[2]
+		}
+		if varName != "" && !seen[varName] {
 			vars = append(vars, varName)
 			seen[varName] = true
 		}
