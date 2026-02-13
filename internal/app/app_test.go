@@ -859,3 +859,244 @@ func TestRecallWithHeaderOverrides(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+
+// TestExecuteRequestWithStdinBodyPipe tests executeRequest with stdin body data
+func TestExecuteRequestWithStdinBodyPipe(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   false,
+	}
+
+	// Create a pipe to simulate stdin
+	r, w, _ := os.Pipe()
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+	os.Stdin = r
+
+	// Write test data to stdin
+	go func() {
+		w.WriteString(`{"test": "data"}`)
+		w.Close()
+	}()
+
+	req := &cli.ParsedRequest{
+		Method:        "POST",
+		URL:           "http://example.com/api",
+		Headers:       make(map[string]string),
+		QueryParams:   make(map[string]string),
+		Body:          "",
+		Dry:           true,
+		Save:          "test-call",
+		NoInteractive: true,
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// TestExecuteRequestWithPathVariablesNonInteractive tests path variables with non-interactive mode
+func TestExecuteRequestWithPathVariablesNonInteractive(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	req := &cli.ParsedRequest{
+		Method:        "GET",
+		URL:           "http://example.com/users/{id}/posts",
+		Headers:       make(map[string]string),
+		QueryParams:   make(map[string]string),
+		Body:          "",
+		PathParams:    make(map[string]string),
+		Dry:           true,
+		Save:          "test-call",
+		NoInteractive: true, // Missing path param, no interactive mode - should error
+	}
+
+	err := app.executeRequest(req)
+	if err == nil {
+		t.Error("expected error for missing path variable in non-interactive mode")
+	}
+	if !strings.Contains(err.Error(), "missing required template variable") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+// TestExecuteRequestWithPathVariablesProvided tests path variables with provided values
+func TestExecuteRequestWithPathVariablesProvided(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	req := &cli.ParsedRequest{
+		Method:      "GET",
+		URL:         "http://example.com/users/{id}",
+		Headers:     make(map[string]string),
+		QueryParams: make(map[string]string),
+		Body:        "",
+		PathParams:  map[string]string{"id": "123"},
+		Dry:         true,
+		Save:        "test-call",
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the call was saved (note: dry run saves the original URL, not resolved)
+	call, err := app.storage.Load("test-call")
+	if err != nil {
+		t.Fatalf("failed to load saved call: %v", err)
+	}
+	// In dry run, the original URL is saved (template substitution happens at execution time)
+	if call.Method != "GET" {
+		t.Errorf("expected GET method, got: %s", call.Method)
+	}
+}
+
+// TestExecuteRequestWithInvalidTimeout tests handling of invalid timeout values
+func TestExecuteRequestWithInvalidTimeout(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{Timeout: "invalid-timeout"},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	req := &cli.ParsedRequest{
+		Method:        "GET",
+		URL:           "http://example.com/api",
+		Headers:       make(map[string]string),
+		QueryParams:   make(map[string]string),
+		Body:          "",
+		Dry:           true,
+		Save:          "test-call",
+		NoInteractive: true,
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error with invalid timeout: %v", err)
+	}
+	// Should fall back to default 30s timeout, not error
+}
+
+// TestHandleAuthCommandRemoveNonexistent tests removing non-existent auth preset
+func TestHandleAuthCommandRemoveNonexistent(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "remove",
+		Name:       "nonexistent",
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error when removing nonexistent auth preset")
+	}
+}
+
+// TestHandleAuthCommandInvalidSubcommand tests invalid auth subcommand
+func TestHandleAuthCommandInvalidSubcommand(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "invalid",
+		Name:       "",
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error for invalid auth subcommand")
+	}
+}
+
+// TestRunWithDeleteCommand tests the delete command through Run
+func TestRunWithDeleteCommand(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	// First save a call
+	call := storage.NewSavedCall("test-call", "GET", "http://example.com", make(map[string]string), make(map[string]string), "")
+	if err := app.storage.Save(call); err != nil {
+		t.Fatalf("failed to save call: %v", err)
+	}
+
+	// Run with delete command
+	err := app.Run([]string{"delete", "test-call"})
+	if err != nil {
+		t.Fatalf("unexpected error deleting call: %v", err)
+	}
+
+	// Verify the call was deleted
+	exists := app.storage.Exists("test-call")
+	if exists {
+		t.Error("expected call to be deleted")
+	}
+}
