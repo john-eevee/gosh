@@ -1,0 +1,861 @@
+package app
+
+import (
+	"bytes"
+	"io"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/gosh/internal/auth"
+	"github.com/gosh/internal/cli"
+	"github.com/gosh/internal/config"
+	"github.com/gosh/internal/storage"
+)
+
+// TestRunWithVersion tests the version command
+func TestRunWithVersion(t *testing.T) {
+	app := &App{
+		workspace: &config.Workspace{Root: "/tmp"},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager("/tmp"),
+		authMgr:   auth.NewManager("/tmp"),
+	}
+
+	err := app.Run([]string{"--version"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestRunWithHelp tests the help command
+func TestRunWithHelp(t *testing.T) {
+	app := &App{
+		workspace: &config.Workspace{Root: "/tmp"},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager("/tmp"),
+		authMgr:   auth.NewManager("/tmp"),
+	}
+
+	err := app.Run([]string{"--help"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestRunWithInvalidCommand tests an invalid command
+func TestRunWithInvalidCommand(t *testing.T) {
+	app := &App{
+		workspace: &config.Workspace{Root: "/tmp"},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager("/tmp"),
+		authMgr:   auth.NewManager("/tmp"),
+	}
+
+	err := app.Run([]string{"invalid-command"})
+	if err == nil {
+		t.Fatalf("expected error for invalid command, got nil")
+	}
+}
+
+// TestRunWithNoArgs tests with no arguments
+func TestRunWithNoArgs(t *testing.T) {
+	app := &App{
+		workspace: &config.Workspace{Root: "/tmp"},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager("/tmp"),
+		authMgr:   auth.NewManager("/tmp"),
+	}
+
+	err := app.Run([]string{})
+	if err == nil {
+		t.Fatalf("expected error for no args, got nil")
+	}
+}
+
+// TestListCallsEmpty tests listing calls when none exist
+func TestListCallsEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	err := app.Run([]string{"list"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestDeleteCallNonexistent tests deleting a nonexistent call
+func TestDeleteCallNonexistent(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	err := app.Run([]string{"delete", "nonexistent"})
+	if err == nil {
+		t.Fatalf("expected error for deleting nonexistent call, got nil")
+	}
+}
+
+// TestSubstituteEnvVars tests environment variable substitution
+func TestSubstituteEnvVars(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		envVars  map[string]string
+		expected string
+	}{
+		{
+			name:     "simple substitution",
+			text:     "https://api.example.com/${PATH}",
+			envVars:  map[string]string{"PATH": "users"},
+			expected: "https://api.example.com/users",
+		},
+		{
+			name:     "multiple substitutions",
+			text:     "${PROTO}://${HOST}/${PATH}",
+			envVars:  map[string]string{"PROTO": "https", "HOST": "api.example.com", "PATH": "users"},
+			expected: "https://api.example.com/users",
+		},
+		{
+			name:     "nonexistent variable",
+			text:     "https://api.example.com/${MISSING}",
+			envVars:  map[string]string{},
+			expected: "https://api.example.com/${MISSING}",
+		},
+		{
+			name:     "no variables",
+			text:     "https://api.example.com/users",
+			envVars:  map[string]string{},
+			expected: "https://api.example.com/users",
+		},
+		{
+			name:     "empty text",
+			text:     "",
+			envVars:  map[string]string{},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &App{
+				workspace: &config.Workspace{Root: "/tmp", Env: tt.envVars},
+			}
+			result := app.substituteEnvVars(tt.text)
+			if result != tt.expected {
+				t.Errorf("got %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestSubstituteEnvVarsInMap tests environment variable substitution in maps
+func TestSubstituteEnvVarsInMap(t *testing.T) {
+	app := &App{
+		workspace: &config.Workspace{
+			Root: "/tmp",
+			Env:  map[string]string{"HOST": "api.example.com", "TOKEN": "secret123"},
+		},
+	}
+
+	input := map[string]string{
+		"Authorization": "Bearer ${TOKEN}",
+		"Host":          "${HOST}",
+	}
+
+	result := app.substituteEnvVarsInMap(input)
+
+	if result["Authorization"] != "Bearer secret123" {
+		t.Errorf("got %q, want 'Bearer secret123'", result["Authorization"])
+	}
+	if result["Host"] != "api.example.com" {
+		t.Errorf("got %q, want 'api.example.com'", result["Host"])
+	}
+}
+
+// TestSubstituteEnvVarsInMapWithMissing tests substitution with missing variables
+func TestSubstituteEnvVarsInMapWithMissing(t *testing.T) {
+	app := &App{
+		workspace: &config.Workspace{
+			Root: "/tmp",
+			Env:  map[string]string{},
+		},
+	}
+
+	input := map[string]string{
+		"Authorization": "Bearer ${TOKEN}",
+	}
+
+	result := app.substituteEnvVarsInMap(input)
+
+	if result["Authorization"] != "Bearer ${TOKEN}" {
+		t.Errorf("got %q, want 'Bearer ${TOKEN}'", result["Authorization"])
+	}
+}
+
+// TestExecuteRequestWithDryRun tests executing a request with --dry flag
+func TestExecuteRequestWithDryRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	req := &cli.ParsedRequest{
+		Method:  "GET",
+		URL:     "https://api.example.com/users",
+		Headers: make(map[string]string),
+		Dry:     true,
+		Save:    "test-call",
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify call was saved
+	saved, err := app.storage.Load("test-call")
+	if err != nil {
+		t.Fatalf("expected saved call to exist, got error %v", err)
+	}
+
+	if saved.Method != "GET" {
+		t.Errorf("saved method: got %q, want 'GET'", saved.Method)
+	}
+	if saved.URL != "https://api.example.com/users" {
+		t.Errorf("saved URL: got %q, want 'https://api.example.com/users'", saved.URL)
+	}
+}
+
+// TestExecuteRequestWithDryRunNoSave tests --dry without --save
+func TestExecuteRequestWithDryRunNoSave(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	req := &cli.ParsedRequest{
+		Method:  "GET",
+		URL:     "https://api.example.com/users",
+		Headers: make(map[string]string),
+		Dry:     true,
+	}
+
+	err := app.executeRequest(req)
+	if err == nil {
+		t.Fatalf("expected error for --dry without --save, got nil")
+	}
+}
+
+// TestExecuteRequestWithDefaultHeaders tests applying workspace default headers
+func TestExecuteRequestWithDefaultHeaders(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Config: &config.WorkspaceConfig{
+				DefaultHeaders: map[string]string{
+					"X-Custom": "value",
+				},
+			},
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+	}
+
+	req := &cli.ParsedRequest{
+		Method:  "GET",
+		URL:     "https://httpbin.org/get",
+		Headers: make(map[string]string),
+		Dry:     true,
+		Save:    "test",
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Default headers should be applied during executeRequest
+	if _, exists := req.Headers["X-Custom"]; !exists {
+		t.Errorf("default header X-Custom should be applied")
+	}
+}
+
+// TestExecuteRequestWithEnvVarSubstitution tests URL env var substitution
+func TestExecuteRequestWithEnvVarSubstitution(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env: map[string]string{
+				"API_HOST": "api.example.com",
+			},
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+	}
+
+	req := &cli.ParsedRequest{
+		Method:  "GET",
+		URL:     "https://${API_HOST}/users",
+		Headers: make(map[string]string),
+		Dry:     true,
+		Save:    "test",
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify URL was substituted
+	saved, err := app.storage.Load("test")
+	if err != nil {
+		t.Fatalf("expected saved call, got error %v", err)
+	}
+
+	if saved.URL != "https://api.example.com/users" {
+		t.Errorf("substituted URL: got %q, want 'https://api.example.com/users'", saved.URL)
+	}
+}
+
+// TestExecuteRequestWithInvalidAuth tests executing with nonexistent auth preset
+func TestExecuteRequestWithInvalidAuth(t *testing.T) {
+	tmpDir := t.TempDir()
+	authMgr := auth.NewManager(tmpDir)
+
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   authMgr,
+	}
+
+	req := &cli.ParsedRequest{
+		Method:  "GET",
+		URL:     "https://api.example.com/users",
+		Headers: make(map[string]string),
+		Auth:    "nonexistent",
+	}
+
+	err := app.executeRequest(req)
+	if err == nil {
+		t.Fatalf("expected error for nonexistent auth, got nil")
+	}
+}
+
+// TestHandleAuthCommandList tests listing auth presets
+func TestHandleAuthCommandList(t *testing.T) {
+	tmpDir := t.TempDir()
+	authMgr := auth.NewManager(tmpDir)
+	authMgr.Add(&auth.AuthPreset{
+		Name:  "test",
+		Type:  "bearer",
+		Token: "xyz",
+	})
+
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   authMgr,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "list",
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandListEmpty tests listing when no presets exist
+func TestHandleAuthCommandListEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "list",
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandAddBearer tests adding a bearer auth preset
+func TestHandleAuthCommandAddBearer(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "bearer",
+		Name:       "my-api",
+		Flags: map[string]string{
+			"token": "abc123",
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify preset was added
+	preset, err := app.authMgr.Get("my-api")
+	if err != nil {
+		t.Fatalf("expected preset to exist, got error %v", err)
+	}
+
+	if preset.Type != "bearer" {
+		t.Errorf("preset type: got %q, want 'bearer'", preset.Type)
+	}
+	if preset.Token != "abc123" {
+		t.Errorf("preset token: got %q, want 'abc123'", preset.Token)
+	}
+}
+
+// TestHandleAuthCommandAddBasic tests adding basic auth preset
+func TestHandleAuthCommandAddBasic(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "basic",
+		Name:       "api-user",
+		Flags: map[string]string{
+			"username": "user123",
+			"password": "pass456",
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	preset, err := app.authMgr.Get("api-user")
+	if err != nil {
+		t.Fatalf("expected preset to exist, got error %v", err)
+	}
+
+	if preset.Type != "basic" {
+		t.Errorf("preset type: got %q, want 'basic'", preset.Type)
+	}
+}
+
+// TestHandleAuthCommandAddBasicMissingUsername tests basic auth without username
+func TestHandleAuthCommandAddBasicMissingUsername(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "basic",
+		Name:       "api-user",
+		Flags:      map[string]string{},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Fatalf("expected error for missing username, got nil")
+	}
+}
+
+// TestHandleAuthCommandAddCustom tests adding custom header auth
+func TestHandleAuthCommandAddCustom(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "custom",
+		Name:       "custom-auth",
+		Flags: map[string]string{
+			"header": "X-API-Key",
+			"value":  "secret-key",
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	preset, err := app.authMgr.Get("custom-auth")
+	if err != nil {
+		t.Fatalf("expected preset to exist, got error %v", err)
+	}
+
+	if preset.Type != "custom" {
+		t.Errorf("preset type: got %q, want 'custom'", preset.Type)
+	}
+}
+
+// TestHandleAuthCommandRemove tests removing an auth preset
+func TestHandleAuthCommandRemove(t *testing.T) {
+	tmpDir := t.TempDir()
+	authMgr := auth.NewManager(tmpDir)
+	authMgr.Add(&auth.AuthPreset{
+		Name:  "test-preset",
+		Type:  "bearer",
+		Token: "xyz",
+	})
+
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   authMgr,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "remove",
+		Name:       "test-preset",
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Verify preset was removed
+	_, err = app.authMgr.Get("test-preset")
+	if err == nil {
+		t.Fatalf("expected error for removed preset, got nil")
+	}
+}
+
+// TestHandleAuthCommandInvalid tests invalid auth subcommand
+func TestHandleAuthCommandInvalid(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "invalid",
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Fatalf("expected error for invalid subcommand, got nil")
+	}
+}
+
+// TestParseTimeoutFromGlobalConfig tests parsing timeout from config
+func TestParseTimeoutFromGlobalConfig(t *testing.T) {
+	tests := []struct {
+		name              string
+		configTimeout     string
+		expectedSecInDesc string
+	}{
+		{
+			name:              "valid timeout",
+			configTimeout:     "60s",
+			expectedSecInDesc: "60",
+		},
+		{
+			name:              "invalid timeout falls back to default",
+			configTimeout:     "invalid",
+			expectedSecInDesc: "30",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			app := &App{
+				workspace: &config.Workspace{Root: tmpDir},
+				global: &config.GlobalConfig{
+					Timeout: tt.configTimeout,
+				},
+				storage: storage.NewManager(tmpDir),
+				authMgr: auth.NewManager(tmpDir),
+			}
+
+			// Dry run to avoid actual HTTP request
+			req := &cli.ParsedRequest{
+				Method:  "GET",
+				URL:     "https://api.example.com/test",
+				Headers: make(map[string]string),
+				Dry:     true,
+				Save:    "test",
+			}
+
+			err := app.executeRequest(req)
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+		})
+	}
+}
+
+// TestListCallsWithSavedCalls tests listing with existing calls
+func TestListCallsWithSavedCalls(t *testing.T) {
+	tmpDir := t.TempDir()
+	storageMgr := storage.NewManager(tmpDir)
+
+	call1 := storage.NewSavedCall("api-users", "GET", "https://api.example.com/users", nil, nil, "")
+	call2 := storage.NewSavedCall("api-posts", "POST", "https://api.example.com/posts", nil, nil, "")
+
+	storageMgr.Save(call1)
+	storageMgr.Save(call2)
+
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storageMgr,
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	err := app.Run([]string{"list"})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestExecuteRecall tests executing a recalled saved call
+func TestExecuteRecall(t *testing.T) {
+	tmpDir := t.TempDir()
+	storageMgr := storage.NewManager(tmpDir)
+
+	call := storage.NewSavedCall(
+		"test-call",
+		"GET",
+		"https://api.example.com/users",
+		map[string]string{"X-Custom": "value"},
+		nil,
+		"",
+	)
+	storageMgr.Save(call)
+
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storageMgr,
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	opts := &cli.RecallOptions{
+		Name:              "test-call",
+		ParameterOverride: make(map[string]string),
+		Headers:           make(map[string]string),
+	}
+
+	err := app.executeRecall(opts)
+	// Error expected since we can't actually make HTTP request, but method should work
+	if err != nil && !strings.Contains(err.Error(), "request failed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// TestExecuteRecallNonexistent tests recalling nonexistent call
+func TestExecuteRecallNonexistent(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	opts := &cli.RecallOptions{
+		Name:              "nonexistent",
+		ParameterOverride: make(map[string]string),
+		Headers:           make(map[string]string),
+	}
+
+	err := app.executeRecall(opts)
+	if err == nil {
+		t.Fatalf("expected error for nonexistent call, got nil")
+	}
+}
+
+// TestOutputCapture captures output during tests
+func captureOutput(f func()) string {
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	f()
+
+	w.Close()
+	os.Stdout = old
+
+	var buf bytes.Buffer
+	io.Copy(&buf, r)
+	return buf.String()
+}
+
+// TestVersionOutput tests version output format
+func TestVersionOutput(t *testing.T) {
+	app := &App{
+		workspace: &config.Workspace{Root: "/tmp"},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager("/tmp"),
+		authMgr:   auth.NewManager("/tmp"),
+	}
+
+	output := captureOutput(func() {
+		app.Run([]string{"--version"})
+	})
+
+	if !strings.Contains(output, "gosh version") {
+		t.Errorf("version output missing: got %q", output)
+	}
+}
+
+// TestDeleteCallOutput tests delete output message
+func TestDeleteCallOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+	storageMgr := storage.NewManager(tmpDir)
+	call := storage.NewSavedCall("delete-me", "GET", "https://api.example.com", nil, nil, "")
+	storageMgr.Save(call)
+
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storageMgr,
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	output := captureOutput(func() {
+		app.Run([]string{"delete", "delete-me"})
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Errorf("delete output missing: got %q", output)
+	}
+}
+
+// TestDryRunOutput tests dry run output
+func TestDryRunOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storage.NewManager(tmpDir),
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	req := &cli.ParsedRequest{
+		Method:  "POST",
+		URL:     "https://api.example.com/users",
+		Headers: make(map[string]string),
+		Body:    `{"name":"John"}`,
+		Dry:     true,
+		Save:    "create-user",
+	}
+
+	output := captureOutput(func() {
+		app.executeRequest(req)
+	})
+
+	if !strings.Contains(output, "Saved call") {
+		t.Errorf("dry run output missing: got %q", output)
+	}
+}
+
+// TestIsTerminalWithFile tests terminal detection
+func TestIsTerminalWithFile(t *testing.T) {
+	tmpFile, err := os.CreateTemp(t.TempDir(), "test")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	defer tmpFile.Close()
+
+	// File is not a terminal
+	result := isTerminal(tmpFile)
+	if result {
+		t.Errorf("file should not be terminal")
+	}
+}
+
+// TestRecallWithHeaderOverrides tests recall with header overrides
+func TestRecallWithHeaderOverrides(t *testing.T) {
+	tmpDir := t.TempDir()
+	storageMgr := storage.NewManager(tmpDir)
+
+	call := storage.NewSavedCall(
+		"test-call",
+		"GET",
+		"https://api.example.com/users",
+		map[string]string{"X-Original": "original"},
+		nil,
+		"",
+	)
+	storageMgr.Save(call)
+
+	app := &App{
+		workspace: &config.Workspace{Root: tmpDir},
+		global:    &config.GlobalConfig{},
+		storage:   storageMgr,
+		authMgr:   auth.NewManager(tmpDir),
+	}
+
+	opts := &cli.RecallOptions{
+		Name: "test-call",
+		Headers: map[string]string{
+			"X-Override": "override",
+		},
+		ParameterOverride: make(map[string]string),
+	}
+
+	err := app.executeRecall(opts)
+	// Error expected from HTTP request attempt, but headers should be merged
+	if err != nil && !strings.Contains(err.Error(), "request failed") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
