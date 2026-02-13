@@ -6,15 +6,16 @@ This document outlines how to run, write, and understand the test suite for the 
 
 Gosh has a comprehensive test suite consisting of:
 
-- **Unit Tests**: 198 tests covering individual packages
-  - App package: 30 tests (67.2% coverage)
+- **Unit Tests**: 250+ tests covering individual packages
+  - App package: 40 tests (73.1% coverage)
   - Auth package: 23 tests (84.6% coverage)
   - CLI package: 49 tests (88.4% coverage)
   - Config package: 15 tests (85.1% coverage)
   - Output package: 25 tests (95.2% coverage)
   - Request package: 39 tests (93.9% coverage)
   - Storage package: 14 tests (84.0% coverage)
-  - UI package: 13 tests (54.2% coverage)
+  - UI package: 29 tests (91.7% coverage)
+  - Main package (cmd/gosh): 6 integration tests
 
 - **Integration Tests**: 38 tests covering end-to-end workflows
   - HTTP integration tests: 20 tests (httpbin.org)
@@ -27,8 +28,8 @@ Gosh has a comprehensive test suite consisting of:
   - Storage operations (save, load, list, delete)
   - Template resolution
 
-**Total: 236 unit + integration tests + 11 benchmarks**
-**Overall Coverage: 80.3% of statements**
+**Total: 250+ unit + integration tests + 11 benchmarks**
+**Overall Coverage: 83.3% of statements**
 
 ## Quick Start
 
@@ -131,6 +132,21 @@ Tests for command-line argument parsing:
 
 Run: `go test ./internal/cli -v`
 
+#### App Package (`internal/app/app_test.go`)
+
+Tests for the main application logic:
+- Application initialization and startup
+- Request execution with various options (headers, parameters, body)
+- Authentication integration with presets
+- Saved call functionality
+- Environment variable substitution
+- Template variable handling
+- Dry run mode
+- Query parameters and headers
+- Auth command processing (add, remove, list)
+
+Run: `go test ./internal/app -v`
+
 #### Output Package (`internal/output/formatter_test.go`)
 
 Tests for response formatting:
@@ -166,10 +182,15 @@ Run: `go test ./internal/storage -v`
 #### UI Package (`internal/ui/prompt_test.go`)
 
 Tests for interactive prompts:
-- Prompt model rendering
-- User input handling
+- Prompt model initialization and rendering
+- Text input handling (character input, backspace, enter)
+- Ctrl+C handling
+- Special character input
 - Whitespace trimming
-- Special character handling
+- Empty input handling
+- Multi-variable prompting
+- stdout output verification
+- Bubbletea model state management
 
 Run: `go test ./internal/ui -v`
 
@@ -501,7 +522,7 @@ go test -race ./...
 ### Coverage Goals
 
 - Minimum unit test coverage: 80%
-- Current coverage: 80.3% overall (see breakdown above)
+- Current coverage: 83.3% overall (see breakdown above)
 - Integration tests provide end-to-end validation
 - All critical paths have benchmarks
 
