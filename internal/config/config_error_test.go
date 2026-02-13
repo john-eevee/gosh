@@ -10,7 +10,9 @@ import (
 func TestLoadGlobalConfigWithInvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	configDir := filepath.Join(tmpDir, ".config", "gosh")
-	os.MkdirAll(configDir, 0755)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("failed to create config directory: %v", err)
+	}
 
 	// Write invalid YAML
 	configFile := filepath.Join(configDir, "config.yaml")
@@ -62,7 +64,9 @@ func TestDetectWorkspaceWithNoIndicators(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Create nested directory with no workspace indicators
 	nestedDir := filepath.Join(tmpDir, "a", "b", "c")
-	os.MkdirAll(nestedDir, 0755)
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatalf("failed to create nested directory: %v", err)
+	}
 
 	// Change to temp directory context (in real scenario would chdir)
 	// For now, just verify the function handles missing workspace gracefully

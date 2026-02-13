@@ -111,7 +111,7 @@ func (p *Parser) parseRequest() (*ParsedRequest, error) {
 			req.Auth = p.Args[i]
 		case strings.HasPrefix(arg, "-H"):
 			// Header: -H key:value or -H key=value
-			headerVal := arg
+			var headerVal string
 			if arg == "-H" {
 				if i+1 >= len(p.Args) {
 					return nil, fmt.Errorf("-H requires a value")
@@ -134,7 +134,7 @@ func (p *Parser) parseRequest() (*ParsedRequest, error) {
 			req.Headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 		case strings.HasPrefix(arg, "-d"):
 			// Body data: -d '{"json":"data"}'
-			bodyVal := arg
+			var bodyVal string
 			if arg == "-d" {
 				if i+1 >= len(p.Args) {
 					return nil, fmt.Errorf("-d requires a value")
@@ -182,7 +182,7 @@ func (p *Parser) parseRecall() (*RecallOptions, error) {
 
 		switch {
 		case strings.HasPrefix(arg, "-H"):
-			headerVal := arg
+			var headerVal string
 			if arg == "-H" {
 				if i+1 >= len(p.Args) {
 					return nil, fmt.Errorf("-H requires a value")

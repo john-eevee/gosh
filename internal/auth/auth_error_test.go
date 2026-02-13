@@ -94,8 +94,12 @@ func TestManagerGetAfterRemove(t *testing.T) {
 		Type:  "bearer",
 		Token: "xyz",
 	}
-	mgr.Add(preset)
-	mgr.Remove("temp")
+	if err := mgr.Add(preset); err != nil {
+		t.Fatalf("failed to add preset: %v", err)
+	}
+	if err := mgr.Remove("temp"); err != nil {
+		t.Fatalf("failed to remove preset: %v", err)
+	}
 
 	_, err := mgr.Get("temp")
 	if err == nil {

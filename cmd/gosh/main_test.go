@@ -94,7 +94,7 @@ func TestMainNoArgs(t *testing.T) {
 	cmd.Stderr = &stderr
 
 	// No args might show help or error
-	cmd.Run()
+	_ = cmd.Run()
 	// Just verify command completes
 }
 
@@ -107,10 +107,10 @@ func TestMainStderrHandling(t *testing.T) {
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
-	cmd.Run()
+	_ = cmd.Run()
 
 	// Even on error, it should handle stderr properly
 	if stderr.Len() == 0 {
-		// This is okay, the invalid command might be handled differently
+		t.Log("Note: No stderr output for invalid command")
 	}
 }

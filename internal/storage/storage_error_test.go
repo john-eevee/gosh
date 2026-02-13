@@ -71,7 +71,9 @@ func TestManagerExistsWithExistingCall(t *testing.T) {
 	mgr := NewManager(tmpDir)
 
 	call := NewSavedCall("exists-test", "GET", "https://api.example.com", nil, nil, "")
-	mgr.Save(call)
+	if err := mgr.Save(call); err != nil {
+		t.Fatalf("failed to save call: %v", err)
+	}
 
 	exists := mgr.Exists("exists-test")
 	if !exists {
@@ -120,7 +122,9 @@ func TestManagerSaveOverwriteExisting(t *testing.T) {
 	mgr := NewManager(tmpDir)
 
 	call1 := NewSavedCall("test", "GET", "https://api.example.com/v1", nil, nil, "")
-	mgr.Save(call1)
+	if err := mgr.Save(call1); err != nil {
+		t.Fatalf("failed to save call1: %v", err)
+	}
 
 	call2 := NewSavedCall("test", "POST", "https://api.example.com/v2", nil, nil, "body")
 	err := mgr.Save(call2)

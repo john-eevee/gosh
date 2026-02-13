@@ -366,11 +366,13 @@ func TestExecuteRequestWithInvalidAuth(t *testing.T) {
 func TestHandleAuthCommandList(t *testing.T) {
 	tmpDir := t.TempDir()
 	authMgr := auth.NewManager(tmpDir)
-	authMgr.Add(&auth.AuthPreset{
+	if err := authMgr.Add(&auth.AuthPreset{
 		Name:  "test",
 		Type:  "bearer",
 		Token: "xyz",
-	})
+	}); err != nil {
+		t.Fatalf("failed to add preset: %v", err)
+	}
 
 	app := &App{
 		workspace: &config.Workspace{Root: tmpDir},
@@ -544,11 +546,13 @@ func TestHandleAuthCommandAddCustom(t *testing.T) {
 func TestHandleAuthCommandRemove(t *testing.T) {
 	tmpDir := t.TempDir()
 	authMgr := auth.NewManager(tmpDir)
-	authMgr.Add(&auth.AuthPreset{
+	if err := authMgr.Add(&auth.AuthPreset{
 		Name:  "test-preset",
 		Type:  "bearer",
 		Token: "xyz",
-	})
+	}); err != nil {
+		t.Fatalf("failed to add preset: %v", err)
+	}
 
 	app := &App{
 		workspace: &config.Workspace{Root: tmpDir},
@@ -650,8 +654,12 @@ func TestListCallsWithSavedCalls(t *testing.T) {
 	call1 := storage.NewSavedCall("api-users", "GET", "https://api.example.com/users", nil, nil, "")
 	call2 := storage.NewSavedCall("api-posts", "POST", "https://api.example.com/posts", nil, nil, "")
 
-	storageMgr.Save(call1)
-	storageMgr.Save(call2)
+	if err := storageMgr.Save(call1); err != nil {
+		t.Fatalf("failed to save call1: %v", err)
+	}
+	if err := storageMgr.Save(call2); err != nil {
+		t.Fatalf("failed to save call2: %v", err)
+	}
 
 	app := &App{
 		workspace: &config.Workspace{Root: tmpDir},
@@ -679,7 +687,9 @@ func TestExecuteRecall(t *testing.T) {
 		nil,
 		"",
 	)
-	storageMgr.Save(call)
+	if err := storageMgr.Save(call); err != nil {
+		t.Fatalf("failed to save call: %v", err)
+	}
 
 	app := &App{
 		workspace: &config.Workspace{Root: tmpDir},
@@ -735,7 +745,7 @@ func captureOutput(f func()) string {
 	os.Stdout = old
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	return buf.String()
 }
 
@@ -749,7 +759,7 @@ func TestVersionOutput(t *testing.T) {
 	}
 
 	output := captureOutput(func() {
-		app.Run([]string{"--version"})
+		_ = app.Run([]string{"--version"})
 	})
 
 	if !strings.Contains(output, "gosh version") {
@@ -762,7 +772,9 @@ func TestDeleteCallOutput(t *testing.T) {
 	tmpDir := t.TempDir()
 	storageMgr := storage.NewManager(tmpDir)
 	call := storage.NewSavedCall("delete-me", "GET", "https://api.example.com", nil, nil, "")
-	storageMgr.Save(call)
+	if err := storageMgr.Save(call); err != nil {
+		t.Fatalf("failed to save call: %v", err)
+	}
 
 	app := &App{
 		workspace: &config.Workspace{Root: tmpDir},
@@ -772,7 +784,7 @@ func TestDeleteCallOutput(t *testing.T) {
 	}
 
 	output := captureOutput(func() {
-		app.Run([]string{"delete", "delete-me"})
+		_ = app.Run([]string{"delete", "delete-me"})
 	})
 
 	if !strings.Contains(output, "Deleted") {
@@ -800,7 +812,7 @@ func TestDryRunOutput(t *testing.T) {
 	}
 
 	output := captureOutput(func() {
-		app.executeRequest(req)
+		_ = app.executeRequest(req)
 	})
 
 	if !strings.Contains(output, "Saved call") {
@@ -836,7 +848,9 @@ func TestRecallWithHeaderOverrides(t *testing.T) {
 		nil,
 		"",
 	)
-	storageMgr.Save(call)
+	if err := storageMgr.Save(call); err != nil {
+		t.Fatalf("failed to save call: %v", err)
+	}
 
 	app := &App{
 		workspace: &config.Workspace{Root: tmpDir},
@@ -883,7 +897,7 @@ func TestExecuteRequestWithStdinBodyPipe(t *testing.T) {
 
 	// Write test data to stdin
 	go func() {
-		w.WriteString(`{"test": "data"}`)
+		_, _ = w.WriteString(`{"test": "data"}`)
 		w.Close()
 	}()
 

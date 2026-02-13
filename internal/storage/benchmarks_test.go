@@ -20,7 +20,7 @@ func BenchmarkSaveCall(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mgr.Save(call)
+		_ = mgr.Save(call)
 	}
 }
 
@@ -37,11 +37,11 @@ func BenchmarkLoadCall(b *testing.B) {
 		nil,
 		"",
 	)
-	mgr.Save(call)
+	_ = mgr.Save(call)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mgr.Load("test-call")
+		_, _ = mgr.Load("test-call")
 	}
 }
 
@@ -60,12 +60,12 @@ func BenchmarkListCalls(b *testing.B) {
 			nil,
 			"",
 		)
-		mgr.Save(call)
+		_ = mgr.Save(call)
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		mgr.List()
+		_, _ = mgr.List()
 	}
 }
 
@@ -84,8 +84,8 @@ func BenchmarkDeleteCall(b *testing.B) {
 			nil,
 			"",
 		)
-		mgr.Save(call)
-		mgr.Delete("call-to-delete")
+		_ = mgr.Save(call)
+		_ = mgr.Delete("call-to-delete")
 	}
 }
 
@@ -95,7 +95,7 @@ func BenchmarkExistsCall(b *testing.B) {
 	mgr := NewManager(tmpDir)
 
 	call := NewSavedCall("test-call", "GET", "https://api.example.com", nil, nil, "")
-	mgr.Save(call)
+	_ = mgr.Save(call)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -283,7 +283,7 @@ func TestDetectWorkspaceWithGoshYAML(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get cwd: %v", err)
 	}
-	defer os.Chdir(origCWD)
+	defer func() { _ = os.Chdir(origCWD) }()
 
 	// Change to temp directory
 	if err := os.Chdir(tempDir); err != nil {
@@ -322,7 +322,7 @@ func TestDetectWorkspaceWithEnvFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get cwd: %v", err)
 	}
-	defer os.Chdir(origCWD)
+	defer func() { _ = os.Chdir(origCWD) }()
 
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("failed to change directory: %v", err)
@@ -358,7 +358,7 @@ func TestDetectWorkspaceWithGitRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get cwd: %v", err)
 	}
-	defer os.Chdir(origCWD)
+	defer func() { _ = os.Chdir(origCWD) }()
 
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("failed to change directory: %v", err)
@@ -392,7 +392,7 @@ func TestDetectWorkspaceNestedDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get cwd: %v", err)
 	}
-	defer os.Chdir(origCWD)
+	defer func() { _ = os.Chdir(origCWD) }()
 
 	// Create nested directory structure
 	nestedDir := filepath.Join(tempDir, "sub", "dir")
@@ -433,7 +433,7 @@ func TestDetectWorkspacePreferGoshYAMLOverGit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get cwd: %v", err)
 	}
-	defer os.Chdir(origCWD)
+	defer func() { _ = os.Chdir(origCWD) }()
 
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatalf("failed to change directory: %v", err)

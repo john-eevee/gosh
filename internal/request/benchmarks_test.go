@@ -28,7 +28,7 @@ func BenchmarkBuilderBuild(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		builder.Build()
+		_, _ = builder.Build()
 	}
 }
 
@@ -36,7 +36,7 @@ func BenchmarkBuilderBuild(b *testing.B) {
 func BenchmarkExecutorExecute(b *testing.B) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success":true}`))
+		_, _ = w.Write([]byte(`{"success":true}`))
 	}))
 	defer server.Close()
 
@@ -49,7 +49,7 @@ func BenchmarkExecutorExecute(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		executor.Execute(req)
+		_, _ = executor.Execute(req)
 	}
 }
 
@@ -66,7 +66,7 @@ func BenchmarkTemplateResolve(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tmpl.Resolve()
+		_, _ = tmpl.Resolve()
 	}
 }
 

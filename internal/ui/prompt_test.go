@@ -68,7 +68,7 @@ func TestPromptForVariableSimpleInput(t *testing.T) {
 
 	// Write test input
 	go func() {
-		w.WriteString("test_value\n")
+		_, _ = w.WriteString("test_value\n")
 		w.Close()
 	}()
 
@@ -90,7 +90,7 @@ func TestPromptForVariableWithSpaces(t *testing.T) {
 	os.Stdin = r
 
 	go func() {
-		w.WriteString("test value with spaces\n")
+		_, _ = w.WriteString("test value with spaces\n")
 		w.Close()
 	}()
 
@@ -112,7 +112,7 @@ func TestPromptForVariableTrimsWhitespace(t *testing.T) {
 	os.Stdin = r
 
 	go func() {
-		w.WriteString("  value with whitespace  \n")
+		_, _ = w.WriteString("  value with whitespace  \n")
 		w.Close()
 	}()
 
@@ -134,7 +134,7 @@ func TestPromptForVariableEmpty(t *testing.T) {
 	os.Stdin = r
 
 	go func() {
-		w.WriteString("\n")
+		_, _ = w.WriteString("\n")
 		w.Close()
 	}()
 
@@ -156,7 +156,7 @@ func TestPromptInteractiveSingleVariable(t *testing.T) {
 	os.Stdin = r
 
 	go func() {
-		w.WriteString("value1\n")
+		_, _ = w.WriteString("value1\n")
 		w.Close()
 	}()
 
@@ -217,7 +217,7 @@ func TestPromptForVariableStdoutMessage(t *testing.T) {
 	os.Stdin = inR
 
 	go func() {
-		inW.WriteString("test\n")
+		_, _ = inW.WriteString("test\n")
 		inW.Close()
 	}()
 
@@ -230,7 +230,7 @@ func TestPromptForVariableStdoutMessage(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	_, _ = io.Copy(&buf, r)
 	output := buf.String()
 
 	if !contains(output, "test_var") {
@@ -463,7 +463,7 @@ func TestPromptForVariableSpecialCharacters(t *testing.T) {
 
 	specialValue := "value!@#$%^&*()_+-=[]{}|;:,.<>?"
 	go func() {
-		w.WriteString(fmt.Sprintf("%s\n", specialValue))
+		_, _ = w.WriteString(fmt.Sprintf("%s\n", specialValue))
 		w.Close()
 	}()
 

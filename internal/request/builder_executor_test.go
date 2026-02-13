@@ -112,7 +112,7 @@ func TestBuilderWithBody(t *testing.T) {
 
 	// Read body content
 	buf := make([]byte, len(body))
-	httpReq.Body.Read(buf)
+	_, _ = httpReq.Body.Read(buf)
 
 	if string(buf) != body {
 		t.Errorf("body: got %q, want %q", string(buf), body)
@@ -220,7 +220,7 @@ func TestBuilderMultipleQueryParams(t *testing.T) {
 func TestExecutorBasic(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message":"success"}`))
+		_, _ = w.Write([]byte(`{"message":"success"}`))
 	}))
 	defer server.Close()
 
@@ -312,7 +312,7 @@ func TestExecutorWithQueryParams(t *testing.T) {
 func TestExecutorWithBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body := make([]byte, 23)
-		r.Body.Read(body)
+		_, _ = r.Body.Read(body)
 		if !strings.Contains(string(body), "test") {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -423,7 +423,7 @@ func TestExecutorResponseBody(t *testing.T) {
 	expectedBody := `{"name":"John","email":"john@example.com"}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(expectedBody))
+		_, _ = w.Write([]byte(expectedBody))
 	}))
 	defer server.Close()
 
@@ -476,7 +476,7 @@ func TestExecutorSize(t *testing.T) {
 	expectedBody := `{"test":"data"}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(expectedBody))
+		_, _ = w.Write([]byte(expectedBody))
 	}))
 	defer server.Close()
 

@@ -291,7 +291,9 @@ func TestManagerRemove(t *testing.T) {
 		Username: "john",
 	}
 
-	m.Add(preset)
+	if err := m.Add(preset); err != nil {
+		t.Fatalf("expected no error adding preset: %v", err)
+	}
 
 	err := m.Remove("test-basic")
 	if err != nil {
@@ -342,7 +344,9 @@ func TestManagerLoadFromDisk(t *testing.T) {
 		Type:  "bearer",
 		Token: "my-token",
 	}
-	m1.Add(preset)
+	if err := m1.Add(preset); err != nil {
+		t.Fatalf("failed to add preset: %v", err)
+	}
 
 	// Create new manager and load from disk
 	m2 := NewManager(tmpDir)
@@ -385,8 +389,12 @@ func TestManagerList(t *testing.T) {
 	p1 := &AuthPreset{Name: "preset1", Type: "basic", Username: "user1"}
 	p2 := &AuthPreset{Name: "preset2", Type: "bearer", Token: "token2"}
 
-	m.Add(p1)
-	m.Add(p2)
+	if err := m.Add(p1); err != nil {
+		t.Fatalf("failed to add preset1: %v", err)
+	}
+	if err := m.Add(p2); err != nil {
+		t.Fatalf("failed to add preset2: %v", err)
+	}
 
 	presets := m.List()
 	if len(presets) != 2 {
@@ -412,7 +420,9 @@ func TestPermissions(t *testing.T) {
 		Token: "secret-token",
 	}
 
-	m.Add(preset)
+	if err := m.Add(preset); err != nil {
+		t.Fatalf("expected no error adding preset: %v", err)
+	}
 
 	// Check that config file has restrictive permissions (0600)
 	fileInfo, err := os.Stat(m.configPath)

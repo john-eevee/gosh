@@ -11,7 +11,7 @@ func BenchmarkParseSimpleRequest(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parser := NewParser(args)
-		parser.Parse()
+		_, _ = parser.Parse()
 	}
 }
 
@@ -34,7 +34,7 @@ func BenchmarkParseComplexRequest(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parser := NewParser(args)
-		parser.Parse()
+		_, _ = parser.Parse()
 	}
 }
 
@@ -54,7 +54,7 @@ func BenchmarkParseWithManyHeaders(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parser := NewParser(args)
-		parser.Parse()
+		_, _ = parser.Parse()
 	}
 }
 
@@ -69,7 +69,7 @@ func BenchmarkParseRecall(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parser := NewParser(args)
-		parser.Parse()
+		_, _ = parser.Parse()
 	}
 }
 
@@ -83,6 +83,6 @@ func BenchmarkParseAuthCommand(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parser := NewParser(args)
-		parser.Parse()
+		_, _ = parser.Parse()
 	}
 }
