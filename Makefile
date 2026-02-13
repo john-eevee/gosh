@@ -6,7 +6,7 @@ LDFLAGS=-ldflags "-X github.com/gosh/pkg/version.Version=$(VERSION)"
 GO=go
 
 help:
-	@echo "gosh - HTTPie CLI alternative"
+	@echo "gosh"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make build          - Build the gosh binary"
