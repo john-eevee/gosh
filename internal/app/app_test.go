@@ -1067,6 +1067,508 @@ func TestHandleAuthCommandInvalidSubcommand(t *testing.T) {
 	}
 }
 
+// TestHandleAuthCommandAddBasicWithShortFlags tests basic auth with -u and -p short flags
+func TestHandleAuthCommandAddBasicWithShortFlags(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "basic",
+		Name:       "test-basic-short",
+		Flags: map[string]string{
+			"u": "testuser",    // Short flag for username
+			"p": "testpass123", // Short flag for password
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the preset was saved
+	preset, err := app.authMgr.Get("test-basic-short")
+	if err != nil {
+		t.Fatalf("failed to get preset: %v", err)
+	}
+	if preset.Username != "testuser" {
+		t.Errorf("expected username 'testuser', got %q", preset.Username)
+	}
+	if preset.Password != "testpass123" {
+		t.Errorf("expected password 'testpass123', got %q", preset.Password)
+	}
+}
+
+// TestHandleAuthCommandAddBasicWithMixedFlags tests basic auth with mixed long and short flags
+func TestHandleAuthCommandAddBasicWithMixedFlags(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "basic",
+		Name:       "test-basic-mixed",
+		Flags: map[string]string{
+			"username": "longuser",  // Long flag for username
+			"p":        "shortpass", // Short flag for password
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	preset, err := app.authMgr.Get("test-basic-mixed")
+	if err != nil {
+		t.Fatalf("failed to get preset: %v", err)
+	}
+	if preset.Username != "longuser" {
+		t.Errorf("expected username 'longuser', got %q", preset.Username)
+	}
+}
+
+// TestHandleAuthCommandAddBasicMissingPassword tests basic auth without password (optional)
+func TestHandleAuthCommandAddBasicMissingPassword(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	// Password is optional in the current implementation
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "basic",
+		Name:       "test-basic-no-pass",
+		Flags: map[string]string{
+			"username": "useronly",
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	preset, err := app.authMgr.Get("test-basic-no-pass")
+	if err != nil {
+		t.Fatalf("failed to get preset: %v", err)
+	}
+	if preset.Username != "useronly" {
+		t.Errorf("expected username 'useronly', got %q", preset.Username)
+	}
+}
+
+// TestHandleAuthCommandAddBearerWithShortFlag tests bearer auth with -t short flag
+func TestHandleAuthCommandAddBearerWithShortFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "bearer",
+		Name:       "test-bearer-short",
+		Flags: map[string]string{
+			"t": "short-token-abc123", // Short flag for token
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	preset, err := app.authMgr.Get("test-bearer-short")
+	if err != nil {
+		t.Fatalf("failed to get preset: %v", err)
+	}
+	if preset.Token != "short-token-abc123" {
+		t.Errorf("expected token 'short-token-abc123', got %q", preset.Token)
+	}
+}
+
+// TestHandleAuthCommandAddBearerMissingToken tests bearer auth without token
+func TestHandleAuthCommandAddBearerMissingToken(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "bearer",
+		Name:       "test-bearer-no-token",
+		Flags:      make(map[string]string), // No token provided
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error when token is missing")
+	}
+	if !strings.Contains(err.Error(), "bearer auth requires") {
+		t.Errorf("expected 'bearer auth requires' in error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandAddCustomWithShortFlags tests custom auth with -h, -v short flags
+func TestHandleAuthCommandAddCustomWithShortFlags(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "custom",
+		Name:       "test-custom-short",
+		Flags: map[string]string{
+			"h": "X-API-Key",      // Short flag for header
+			"v": "secret-key-123", // Short flag for value
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	preset, err := app.authMgr.Get("test-custom-short")
+	if err != nil {
+		t.Fatalf("failed to get preset: %v", err)
+	}
+	if preset.Header != "X-API-Key" {
+		t.Errorf("expected header 'X-API-Key', got %q", preset.Header)
+	}
+	if preset.Value != "secret-key-123" {
+		t.Errorf("expected value 'secret-key-123', got %q", preset.Value)
+	}
+}
+
+// TestHandleAuthCommandAddCustomWithPrefix tests custom auth with prefix flag
+func TestHandleAuthCommandAddCustomWithPrefix(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "custom",
+		Name:       "test-custom-prefix",
+		Flags: map[string]string{
+			"header": "Authorization",
+			"value":  "mytoken",
+			"prefix": "Bearer", // Optional prefix
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	preset, err := app.authMgr.Get("test-custom-prefix")
+	if err != nil {
+		t.Fatalf("failed to get preset: %v", err)
+	}
+	if preset.Prefix != "Bearer" {
+		t.Errorf("expected prefix 'Bearer', got %q", preset.Prefix)
+	}
+}
+
+// TestHandleAuthCommandAddCustomWithMixedFlags tests custom auth with mixed long and short flags
+func TestHandleAuthCommandAddCustomWithMixedFlags(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "custom",
+		Name:       "test-custom-mixed",
+		Flags: map[string]string{
+			"header": "X-Custom-Header", // Long flag for header
+			"v":      "custom-value",    // Short flag for value
+			"prefix": "Custom",
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	preset, err := app.authMgr.Get("test-custom-mixed")
+	if err != nil {
+		t.Fatalf("failed to get preset: %v", err)
+	}
+	if preset.Header != "X-Custom-Header" {
+		t.Errorf("expected header 'X-Custom-Header', got %q", preset.Header)
+	}
+}
+
+// TestHandleAuthCommandAddCustomMissingHeader tests custom auth without header
+func TestHandleAuthCommandAddCustomMissingHeader(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "custom",
+		Name:       "test-custom-no-header",
+		Flags: map[string]string{
+			"value": "some-value", // Header is required
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error when header is missing")
+	}
+	if !strings.Contains(err.Error(), "custom auth requires --header") {
+		t.Errorf("expected '--header' in error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandAddCustomMissingValue tests custom auth without value
+func TestHandleAuthCommandAddCustomMissingValue(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "custom",
+		Name:       "test-custom-no-value",
+		Flags: map[string]string{
+			"header": "X-API-Key", // Value is required
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error when value is missing")
+	}
+	if !strings.Contains(err.Error(), "custom auth requires --value") {
+		t.Errorf("expected '--value' in error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandAddUnknownType tests adding auth with unknown type
+func TestHandleAuthCommandAddUnknownType(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "unknown-type", // Unknown auth type
+		Name:       "test-unknown",
+		Flags:      make(map[string]string),
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error for unknown auth type")
+	}
+	if !strings.Contains(err.Error(), "unknown auth type") {
+		t.Errorf("expected 'unknown auth type' in error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandAddMissingType tests adding auth without type
+func TestHandleAuthCommandAddMissingType(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "", // Missing type
+		Name:       "test-no-type",
+		Flags:      make(map[string]string),
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error when type is missing")
+	}
+	if !strings.Contains(err.Error(), "auth add requires") {
+		t.Errorf("expected 'auth add requires' in error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandAddMissingName tests adding auth without name
+func TestHandleAuthCommandAddMissingName(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "add",
+		Type:       "bearer",
+		Name:       "", // Missing name
+		Flags: map[string]string{
+			"token": "test-token",
+		},
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error when name is missing")
+	}
+	if !strings.Contains(err.Error(), "auth add requires") {
+		t.Errorf("expected 'auth add requires' in error, got %v", err)
+	}
+}
+
+// TestHandleAuthCommandRemoveMissingName tests removing auth without name
+func TestHandleAuthCommandRemoveMissingName(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	cmd := &cli.AuthCommand{
+		Subcommand: "remove",
+		Name:       "", // Missing preset name
+	}
+
+	err := app.handleAuthCommand(cmd)
+	if err == nil {
+		t.Error("expected error when name is missing for remove")
+	}
+	if !strings.Contains(err.Error(), "auth remove requires") {
+		t.Errorf("expected 'auth remove requires' in error, got %v", err)
+	}
+}
+
 // TestRunWithDeleteCommand tests the delete command through Run
 func TestRunWithDeleteCommand(t *testing.T) {
 	tmpDir := t.TempDir()
