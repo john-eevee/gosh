@@ -1,0 +1,31 @@
+# Binaries
+gosh
+*.exe
+*.dll
+
+# Dependencies
+vendor/
+
+# Test outputs
+*.test
+coverage.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workspace-specific
+.env
+.env.local
+.env.*.local
+
+# Generated
+dist/
+build/
