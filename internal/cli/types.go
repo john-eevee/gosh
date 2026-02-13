@@ -7,6 +7,7 @@ type ParsedRequest struct {
 	Headers      map[string]string
 	QueryParams  map[string]string
 	Body         string
+	PathParams   map[string]string // {var} style parameters
 	HasStdinBody bool
 	// Flags
 	Save          string // Name to save as

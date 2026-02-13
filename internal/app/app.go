@@ -107,14 +107,23 @@ func (a *App) executeRequest(req *cli.ParsedRequest) error {
 
 	resolvedPathVars := make(map[string]string)
 	if len(pathVars) > 0 {
-		// Prompt for missing path variables
 		for _, varName := range pathVars {
-			// Check if provided via CLI
-			// For now, always prompt if missing
-			val, err := ui.PromptForVariable(varName)
-			if err != nil {
-				return err
+			var val string
+
+			// Check if provided via CLI first
+			if cliVal, ok := req.PathParams[varName]; ok {
+				val = cliVal
+			} else if !req.NoInteractive {
+				// Prompt for missing path variables
+				var err error
+				val, err = ui.PromptForVariable(varName)
+				if err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("missing required template variable: {%s}", varName)
 			}
+
 			resolvedPathVars[varName] = val
 		}
 		tmpl.SetPathVars(resolvedPathVars)

@@ -63,6 +63,7 @@ func (p *Parser) parseRequest() (*ParsedRequest, error) {
 		URL:         url,
 		Headers:     make(map[string]string),
 		QueryParams: make(map[string]string),
+		PathParams:  make(map[string]string),
 	}
 
 	// Parse remaining arguments
@@ -135,12 +136,16 @@ func (p *Parser) parseRequest() (*ParsedRequest, error) {
 			}
 			req.Body = bodyVal
 		default:
-			// Could be query param or unknown
+			// Could be query param, path param, or unknown
 			if strings.Contains(arg, "==") {
 				parts := strings.SplitN(arg, "==", 2)
 				req.QueryParams[parts[0]] = parts[1]
+			} else if strings.Contains(arg, "=") && !strings.HasPrefix(arg, "-") {
+				// Path parameter: key=value
+				parts := strings.SplitN(arg, "=", 2)
+				req.PathParams[parts[0]] = parts[1]
 			} else {
-				// Unknown parameter, might be positional (for future use)
+				// Unknown parameter
 				return nil, fmt.Errorf("unexpected argument: %s", arg)
 			}
 		}
