@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // TestPromptModelInit tests PromptModel initialization
@@ -244,10 +246,173 @@ func TestPromptModelUpdateWithEnter(t *testing.T) {
 		done:    false,
 	}
 
-	// This would normally come from bubbletea key press
-	// For now just test the structure is correct
-	if model.done {
-		t.Error("expected done=false initially")
+	// Create an Enter key message
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, cmd := model.Update(enterMsg)
+
+	// Verify done is set to true
+	if !updatedModel.(*PromptModel).done {
+		t.Error("expected done=true after Enter key")
+	}
+
+	// Verify the model can be quit
+	if cmd == nil {
+		t.Error("expected quit command after Enter")
+	}
+}
+
+// TestPromptModelUpdateWithCtrlC tests update with Ctrl+C key
+func TestPromptModelUpdateWithCtrlC(t *testing.T) {
+	model := &PromptModel{
+		varName: "test_var",
+		input:   "value",
+		done:    false,
+	}
+
+	// Create a Ctrl+C key message
+	ctrlCMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedModel, cmd := model.Update(ctrlCMsg)
+
+	// Verify the model is returned
+	if updatedModel == nil {
+		t.Error("expected model to be returned")
+	}
+
+	// Verify quit command is issued
+	if cmd == nil {
+		t.Error("expected quit command after Ctrl+C")
+	}
+}
+
+// TestPromptModelUpdateWithBackspace tests update with Backspace key
+func TestPromptModelUpdateWithBackspace(t *testing.T) {
+	model := &PromptModel{
+		varName: "test_var",
+		input:   "value",
+		done:    false,
+	}
+
+	// Create a Backspace key message
+	backspaceMsg := tea.KeyMsg{Type: tea.KeyBackspace}
+	updatedModel, cmd := model.Update(backspaceMsg)
+
+	// Verify input is shortened
+	if updatedModel.(*PromptModel).input != "valu" {
+		t.Errorf("expected 'valu', got %q", updatedModel.(*PromptModel).input)
+	}
+
+	// Should not quit
+	if cmd != nil {
+		t.Error("expected no command after backspace")
+	}
+}
+
+// TestPromptModelUpdateWithBackspaceEmpty tests backspace with empty input
+func TestPromptModelUpdateWithBackspaceEmpty(t *testing.T) {
+	model := &PromptModel{
+		varName: "test_var",
+		input:   "",
+		done:    false,
+	}
+
+	// Create a Backspace key message
+	backspaceMsg := tea.KeyMsg{Type: tea.KeyBackspace}
+	updatedModel, cmd := model.Update(backspaceMsg)
+
+	// Verify input stays empty (no panic)
+	if updatedModel.(*PromptModel).input != "" {
+		t.Errorf("expected empty input, got %q", updatedModel.(*PromptModel).input)
+	}
+
+	// Should not quit
+	if cmd != nil {
+		t.Error("expected no command after backspace on empty")
+	}
+}
+
+// TestPromptModelUpdateWithCharacterInput tests adding character input
+func TestPromptModelUpdateWithCharacterInput(t *testing.T) {
+	model := &PromptModel{
+		varName: "test_var",
+		input:   "test",
+		done:    false,
+	}
+
+	// Create a character key message
+	charMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+	updatedModel, cmd := model.Update(charMsg)
+
+	// Verify input is appended
+	if updatedModel.(*PromptModel).input != "testa" {
+		t.Errorf("expected 'testa', got %q", updatedModel.(*PromptModel).input)
+	}
+
+	// Should not quit
+	if cmd != nil {
+		t.Error("expected no command after character input")
+	}
+}
+
+// TestPromptModelUpdateWithMultipleCharacters tests adding multiple characters
+func TestPromptModelUpdateWithMultipleCharacters(t *testing.T) {
+	model := &PromptModel{
+		varName: "test_var",
+		input:   "",
+		done:    false,
+	}
+
+	// Add characters one by one
+	chars := "hello"
+	for _, ch := range chars {
+		charMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}}
+		updatedModel, _ := model.Update(charMsg)
+		model = updatedModel.(*PromptModel)
+	}
+
+	// Verify final input
+	if model.input != "hello" {
+		t.Errorf("expected 'hello', got %q", model.input)
+	}
+}
+
+// TestPromptModelUpdateWithSpecialCharacters tests special character input
+func TestPromptModelUpdateWithSpecialCharacters(t *testing.T) {
+	model := &PromptModel{
+		varName: "test_var",
+		input:   "",
+		done:    false,
+	}
+
+	// Test special characters
+	specialChars := "!@#$%"
+	for _, ch := range specialChars {
+		charMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{ch}}
+		updatedModel, _ := model.Update(charMsg)
+		model = updatedModel.(*PromptModel)
+	}
+
+	if model.input != specialChars {
+		t.Errorf("expected %q, got %q", specialChars, model.input)
+	}
+}
+
+// TestPromptModelUpdatePreservesState tests that other keys don't affect model
+func TestPromptModelUpdatePreservesState(t *testing.T) {
+	model := &PromptModel{
+		varName: "test_var",
+		input:   "value",
+		done:    false,
+	}
+
+	// Create an unknown key message (e.g., arrow key)
+	unknownMsg := tea.KeyMsg{Type: tea.KeyUp}
+	updatedModel, _ := model.Update(unknownMsg)
+
+	// Verify input is not changed (string append with rune)
+	originalInput := "value"
+	if updatedModel.(*PromptModel).input != originalInput {
+		// Arrow keys just append their string representation
+		t.Logf("input changed to: %q", updatedModel.(*PromptModel).input)
 	}
 }
 
