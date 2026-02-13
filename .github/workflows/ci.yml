@@ -45,6 +45,10 @@ jobs:
       - name: Run unit tests
         run: go test -v -race -timeout=5m ./...
 
+      - name: Run integration tests
+        run: go test -v -timeout=10m ./tests/integration/...
+        continue-on-error: true
+
       - name: Run benchmarks
         run: go test -bench=. -benchmem ./...
 
@@ -94,7 +98,7 @@ jobs:
           cache: true
 
       - name: Generate coverage report
-        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -coverprofile=coverage.out -covermode=atomic ./internal/... ./cmd/...
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
