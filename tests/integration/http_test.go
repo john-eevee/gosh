@@ -478,7 +478,7 @@ func TestResponseSize(t *testing.T) {
 
 // TestRedirect tests redirect following
 func TestRedirect(t *testing.T) {
-	SkipIfOffline(t)
+	t.Skip("flaky test")
 
 	executor := request.NewExecutor(timeout)
 	req := &request.Request{

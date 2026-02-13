@@ -39,3 +39,6 @@ release_assets/
 
 # Docker
 .docker/
+
+# .gosh
+.gosh/
