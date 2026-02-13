@@ -1,0 +1,9 @@
+name: test-request
+method: POST
+url: https://httpbin.org/post
+headers:
+    Authorization: Bearer xyz
+queryParams: {}
+body: '{"name":"John"}'
+description: ""
+createdAt: "2026-02-12T22:59:23-03:00"

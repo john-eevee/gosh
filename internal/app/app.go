@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/gosh/internal/cli"
@@ -94,6 +95,11 @@ func (a *App) executeRequest(req *cli.ParsedRequest) error {
 			req.HasStdinBody = true
 		}
 	}
+
+	// Resolve environment variables in all parts
+	req.URL = a.substituteEnvVars(req.URL)
+	req.Headers = a.substituteEnvVarsInMap(req.Headers)
+	req.Body = a.substituteEnvVars(req.Body)
 
 	// Resolve template variables in URL
 	tmpl := request.NewTemplate(req.URL)
@@ -293,4 +299,26 @@ Examples:
 // isTerminal checks if a file is a terminal
 func isTerminal(f *os.File) bool {
 	return isatty.IsTerminal(f.Fd())
+}
+
+// substituteEnvVars substitutes environment variables in a string
+func (a *App) substituteEnvVars(text string) string {
+	re := regexp.MustCompile(`\$\{([^}]+)\}`)
+	return re.ReplaceAllStringFunc(text, func(match string) string {
+		varName := match[2 : len(match)-1] // Extract variable name from ${...}
+		if val, ok := a.workspace.Env[varName]; ok {
+			return val
+		}
+		// Return original if not found
+		return match
+	})
+}
+
+// substituteEnvVarsInMap substitutes environment variables in all map values
+func (a *App) substituteEnvVarsInMap(m map[string]string) map[string]string {
+	result := make(map[string]string)
+	for key, val := range m {
+		result[key] = a.substituteEnvVars(val)
+	}
+	return result
 }
