@@ -16,6 +16,7 @@ A lightweight, environment-aware HTTP CLI tool built with Go. Make HTTP requests
 - **Response Formatting**: Pretty-print JSON responses with automatic content-type detection
 - **Pipe Support**: Read request bodies from stdin
 - **TTY-Aware Coloring**: Automatic color output when connected to a terminal
+- **Authentication Presets**: Save and reuse Bearer tokens, Basic auth, and custom authentication headers
 
 ## Installation
 
@@ -126,6 +127,70 @@ cat user.json | gosh post https://api.example.com/users
 curl https://example.com/data | gosh post https://api.example.com/transform
 ```
 
+### Authentication Presets
+
+Save and reuse authentication credentials with the `gosh auth` command:
+
+#### Bearer Token Authentication
+
+```bash
+# Add a bearer token preset
+gosh auth add bearer myapi token=my-secret-token-123
+
+# Use it in requests
+gosh get https://api.example.com/data --auth myapi
+
+# List all presets
+gosh auth list
+
+# Remove a preset
+gosh auth remove myapi
+```
+
+#### Basic Authentication
+
+```bash
+# Add basic auth (username + password)
+gosh auth add basic prod-api username=john password=secret123
+
+# Use it in requests
+gosh get https://api.example.com/protected --auth prod-api
+```
+
+#### Custom Authentication
+
+```bash
+# Add custom header-based authentication
+gosh auth add custom myapi header=X-API-Key value=secret-key-12345
+
+# With prefix (e.g., "Token " prefix)
+gosh auth add custom github-api header=Authorization value=ghp_token123 prefix="token "
+
+# Use in requests
+gosh get https://api.example.com/resources --auth myapi
+```
+
+#### Auth Command Reference
+
+```bash
+# Add a preset
+gosh auth add <type> <name> [options]
+  type: basic, bearer, or custom
+  options depend on type:
+    basic:   username=USER password=PASS
+    bearer:  token=TOKEN
+    custom:  header=HEADER value=VALUE [prefix=PREFIX]
+
+# List all presets
+gosh auth list
+
+# Remove a preset
+gosh auth remove <name>
+
+# Use preset in request
+gosh <METHOD> <URL> --auth <name>
+```
+
 ## Workspace Configuration
 
 ### `.gosh.yaml` (Workspace Config)
@@ -184,6 +249,7 @@ OPTIONS:
   --no-interactive          Don't prompt for missing variables
   --env ENVIRONMENT         Use specific environment context
   --format json|raw|text    Output format
+  --auth PRESET             Use authentication preset
 
 TEMPLATE SYNTAX:
   {varName}                 Path/URL variable (interactive prompt)
@@ -197,6 +263,14 @@ TEMPLATE SYNTAX:
 gosh recall <name> [OVERRIDES]
 gosh list
 gosh delete <name>
+```
+
+### Authentication
+
+```bash
+gosh auth add <type> <name> [options]
+gosh auth list
+gosh auth remove <name>
 ```
 
 ## Examples

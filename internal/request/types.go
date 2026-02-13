@@ -1,6 +1,9 @@
 package request
 
-import "time"
+import (
+	"github.com/gosh/internal/auth"
+	"time"
+)
 
 // Request holds HTTP request details
 type Request struct {
@@ -10,6 +13,7 @@ type Request struct {
 	QueryParams map[string]string
 	Body        string
 	Timeout     time.Duration
+	Auth        *auth.AuthPreset
 }
 
 // Response holds the HTTP response

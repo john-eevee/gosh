@@ -16,6 +16,7 @@ type ParsedRequest struct {
 	NoInteractive bool   // Don't prompt for missing vars
 	Env           string // Environment to use
 	Format        string // Output format
+	Auth          string // Authentication preset to use (format: "type:name")
 }
 
 // RecallOptions holds options for recall command
@@ -24,4 +25,12 @@ type RecallOptions struct {
 	ParameterOverride map[string]string
 	Headers           map[string]string
 	Env               string
+}
+
+// AuthCommand holds auth subcommand details
+type AuthCommand struct {
+	Subcommand string            // "add", "remove", "list"
+	Type       string            // Auth type: "basic", "bearer", "custom"
+	Name       string            // Preset name
+	Flags      map[string]string // Additional flags for add/remove
 }

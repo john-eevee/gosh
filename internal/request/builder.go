@@ -50,5 +50,12 @@ func (b *Builder) Build() (*http.Request, error) {
 		httpReq.Header.Set(key, val)
 	}
 
+	// Apply authentication if provided
+	if b.req.Auth != nil {
+		if err := b.req.Auth.Apply(httpReq); err != nil {
+			return nil, err
+		}
+	}
+
 	return httpReq, nil
 }

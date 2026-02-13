@@ -30,6 +30,8 @@ func (p *Parser) Parse() (interface{}, error) {
 		return p.parseList()
 	case "delete":
 		return p.parseDelete()
+	case "auth":
+		return p.parseAuth()
 	case "--version", "-v":
 		return "version", nil
 	case "--help", "-h":
@@ -99,6 +101,14 @@ func (p *Parser) parseRequest() (*ParsedRequest, error) {
 			}
 			i++
 			req.Format = p.Args[i]
+		case strings.HasPrefix(arg, "--auth="):
+			req.Auth = strings.TrimPrefix(arg, "--auth=")
+		case arg == "--auth":
+			if i+1 >= len(p.Args) {
+				return nil, fmt.Errorf("--auth requires a value")
+			}
+			i++
+			req.Auth = p.Args[i]
 		case strings.HasPrefix(arg, "-H"):
 			// Header: -H key:value or -H key=value
 			headerVal := arg
@@ -224,4 +234,55 @@ func (p *Parser) parseDelete() (string, error) {
 	// Return the name to delete as a special marker
 	// We'll handle this in app logic
 	return fmt.Sprintf("delete:%s", p.Args[1]), nil
+}
+
+// parseAuth parses an auth command
+func (p *Parser) parseAuth() (*AuthCommand, error) {
+	if len(p.Args) < 2 {
+		return &AuthCommand{Subcommand: "list"}, nil
+	}
+
+	subcmd := strings.ToLower(p.Args[1])
+
+	switch subcmd {
+	case "list":
+		return &AuthCommand{Subcommand: "list"}, nil
+	case "add":
+		if len(p.Args) < 4 {
+			return nil, fmt.Errorf("auth add requires: type name [options]")
+		}
+		authType := strings.ToLower(p.Args[2])
+		name := p.Args[3]
+
+		// Parse additional flags for the auth type
+		flags := make(map[string]string)
+		for i := 4; i < len(p.Args); i++ {
+			arg := p.Args[i]
+			if strings.Contains(arg, "=") {
+				parts := strings.SplitN(arg, "=", 2)
+				flags[parts[0]] = parts[1]
+			} else if i+1 < len(p.Args) && strings.HasPrefix(p.Args[i+1], "--") {
+				// Flag with value
+				i++
+				flags[arg] = p.Args[i]
+			}
+		}
+
+		return &AuthCommand{
+			Subcommand: "add",
+			Type:       authType,
+			Name:       name,
+			Flags:      flags,
+		}, nil
+	case "remove", "delete":
+		if len(p.Args) < 3 {
+			return nil, fmt.Errorf("auth remove requires: name")
+		}
+		return &AuthCommand{
+			Subcommand: "remove",
+			Name:       p.Args[2],
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown auth subcommand: %s", subcmd)
+	}
 }

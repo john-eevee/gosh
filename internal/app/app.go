@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/gosh/internal/auth"
 	"github.com/gosh/internal/cli"
 	"github.com/gosh/internal/config"
 	"github.com/gosh/internal/output"
@@ -21,6 +22,7 @@ type App struct {
 	workspace *config.Workspace
 	global    *config.GlobalConfig
 	storage   *storage.Manager
+	authMgr   *auth.Manager
 	isTTY     bool
 }
 
@@ -41,6 +43,12 @@ func NewApp() (*App, error) {
 	// Create storage manager
 	storageMgr := storage.NewManager(workspace.Root)
 
+	// Create auth manager
+	authMgr := auth.NewManager(workspace.Root)
+	if err := authMgr.Load(); err != nil {
+		return nil, err
+	}
+
 	// Check if stdout is a TTY
 	isTTY := isTerminal(os.Stdout)
 
@@ -48,6 +56,7 @@ func NewApp() (*App, error) {
 		workspace: workspace,
 		global:    global,
 		storage:   storageMgr,
+		authMgr:   authMgr,
 		isTTY:     isTTY,
 	}, nil
 }
@@ -65,6 +74,8 @@ func (a *App) Run(args []string) error {
 		return a.executeRequest(v)
 	case *cli.RecallOptions:
 		return a.executeRecall(v)
+	case *cli.AuthCommand:
+		return a.handleAuthCommand(v)
 	case string:
 		switch v {
 		case "version":
@@ -74,7 +85,7 @@ func (a *App) Run(args []string) error {
 		case "list":
 			return a.listCalls()
 		default:
-			if v[:7] == "delete:" {
+			if len(v) > 7 && v[:7] == "delete:" {
 				name := v[7:]
 				return a.deleteCall(name)
 			}
@@ -165,6 +176,15 @@ func (a *App) executeRequest(req *cli.ParsedRequest) error {
 		QueryParams: req.QueryParams,
 		Body:        req.Body,
 		Timeout:     timeout,
+	}
+
+	// Apply authentication if provided
+	if req.Auth != "" {
+		authPreset, err := a.authMgr.Get(req.Auth)
+		if err != nil {
+			return fmt.Errorf("authentication failed: %w", err)
+		}
+		httpReq.Auth = authPreset
 	}
 
 	// If dry run, just save
@@ -340,4 +360,102 @@ func (a *App) substituteEnvVarsInMap(m map[string]string) map[string]string {
 		result[key] = a.substituteEnvVars(val)
 	}
 	return result
+}
+
+// handleAuthCommand handles authentication preset management
+func (a *App) handleAuthCommand(cmd *cli.AuthCommand) error {
+	switch cmd.Subcommand {
+	case "list":
+		presets := a.authMgr.List()
+		if len(presets) == 0 {
+			fmt.Println("No authentication presets configured.")
+			return nil
+		}
+		fmt.Println("Authentication Presets:")
+		for name, preset := range presets {
+			fmt.Printf("  %s (%s)\n", name, preset.Type)
+		}
+		return nil
+
+	case "add":
+		if cmd.Type == "" || cmd.Name == "" {
+			return fmt.Errorf("auth add requires type and name")
+		}
+
+		preset := &auth.AuthPreset{
+			Name: cmd.Name,
+			Type: cmd.Type,
+		}
+
+		// Parse auth type specific flags
+		switch cmd.Type {
+		case "basic":
+			if username, ok := cmd.Flags["username"]; ok {
+				preset.Username = username
+			} else if u, ok := cmd.Flags["u"]; ok {
+				preset.Username = u
+			}
+			if password, ok := cmd.Flags["password"]; ok {
+				preset.Password = password
+			} else if p, ok := cmd.Flags["p"]; ok {
+				preset.Password = p
+			}
+			if preset.Username == "" {
+				return fmt.Errorf("basic auth requires --username or -u")
+			}
+
+		case "bearer":
+			if token, ok := cmd.Flags["token"]; ok {
+				preset.Token = token
+			} else if t, ok := cmd.Flags["t"]; ok {
+				preset.Token = t
+			}
+			if preset.Token == "" {
+				return fmt.Errorf("bearer auth requires --token or -t")
+			}
+
+		case "custom":
+			if header, ok := cmd.Flags["header"]; ok {
+				preset.Header = header
+			} else if h, ok := cmd.Flags["h"]; ok {
+				preset.Header = h
+			}
+			if value, ok := cmd.Flags["value"]; ok {
+				preset.Value = value
+			} else if v, ok := cmd.Flags["v"]; ok {
+				preset.Value = v
+			}
+			if prefix, ok := cmd.Flags["prefix"]; ok {
+				preset.Prefix = prefix
+			}
+			if preset.Header == "" {
+				return fmt.Errorf("custom auth requires --header or -h")
+			}
+			if preset.Value == "" {
+				return fmt.Errorf("custom auth requires --value or -v")
+			}
+
+		default:
+			return fmt.Errorf("unknown auth type: %s", cmd.Type)
+		}
+
+		if err := a.authMgr.Add(preset); err != nil {
+			return err
+		}
+		fmt.Printf("Added auth preset: %s\n", cmd.Name)
+		return nil
+
+	case "remove":
+		if cmd.Name == "" {
+			return fmt.Errorf("auth remove requires a preset name")
+		}
+		if err := a.authMgr.Remove(cmd.Name); err != nil {
+			return err
+		}
+		fmt.Printf("Removed auth preset: %s\n", cmd.Name)
+		return nil
+
+	default:
+		return fmt.Errorf("unknown auth subcommand: %s", cmd.Subcommand)
+	}
 }

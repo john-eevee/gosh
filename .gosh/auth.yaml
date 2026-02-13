@@ -1,0 +1,21 @@
+presets:
+    mybasic:
+        name: mybasic
+        type: basic
+        username: john
+        password: secret123
+        token: ""
+        header: ""
+        prefix: ""
+        value: ""
+        headers: []
+    mytoken:
+        name: mytoken
+        type: bearer
+        username: ""
+        password: ""
+        token: test-secret-123
+        header: ""
+        prefix: ""
+        value: ""
+        headers: []
