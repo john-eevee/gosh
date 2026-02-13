@@ -6,21 +6,29 @@ This document outlines how to run, write, and understand the test suite for the 
 
 Gosh has a comprehensive test suite consisting of:
 
-- **Unit Tests**: 73 tests covering individual packages
-  - Auth package: 23 tests
-  - CLI package: 9 tests
-  - Config package: 15 tests
-  - Output package: 25 tests
-  - Request package: 8 tests
-  - Storage package: 6 tests
-  - UI package: 13 tests
+- **Unit Tests**: 198 tests covering individual packages
+  - App package: 30 tests (67.2% coverage)
+  - Auth package: 23 tests (84.6% coverage)
+  - CLI package: 49 tests (88.4% coverage)
+  - Config package: 15 tests (85.1% coverage)
+  - Output package: 25 tests (95.2% coverage)
+  - Request package: 39 tests (93.9% coverage)
+  - Storage package: 14 tests (84.0% coverage)
+  - UI package: 13 tests (54.2% coverage)
 
 - **Integration Tests**: 38 tests covering end-to-end workflows
   - HTTP integration tests: 20 tests (httpbin.org)
   - Auth preset workflow: 9 tests
   - Saved calls workflow: 9 tests
 
-**Total: 111 tests**
+- **Performance Benchmarks**: 11 benchmarks for critical paths
+  - Request builder and executor
+  - CLI parsing (simple and complex)
+  - Storage operations (save, load, list, delete)
+  - Template resolution
+
+**Total: 236 unit + integration tests + 11 benchmarks**
+**Overall Coverage: 80.3% of statements**
 
 ## Quick Start
 
@@ -493,8 +501,40 @@ go test -race ./...
 ### Coverage Goals
 
 - Minimum unit test coverage: 80%
-- Current coverage: Check with `go tool cover -func=coverage.out`
+- Current coverage: 80.3% overall (see breakdown above)
 - Integration tests provide end-to-end validation
+- All critical paths have benchmarks
+
+### Performance Testing
+
+Run benchmarks to measure performance:
+
+```bash
+# Run all benchmarks
+go test -bench=. ./...
+
+# Run benchmarks for specific package
+go test -bench=. ./internal/request/...
+
+# Include memory allocations
+go test -bench=. -benchmem ./internal/request/...
+
+# Run with specific count
+go test -bench=. -count=5 ./internal/request/...
+```
+
+Available benchmarks:
+- `BenchmarkBuilderBuild`: Request building performance
+- `BenchmarkExecutorExecute`: HTTP request execution
+- `BenchmarkTemplateResolve`: Template variable resolution
+- `BenchmarkExtractPathVars`: Path variable extraction
+- `BenchmarkExtractEnvVars`: Environment variable extraction
+- `BenchmarkParseSimpleRequest`: Simple CLI parsing
+- `BenchmarkParseComplexRequest`: Complex CLI parsing
+- `BenchmarkSaveCall`: Saving HTTP calls to disk
+- `BenchmarkLoadCall`: Loading HTTP calls from disk
+- `BenchmarkListCalls`: Listing all saved calls
+- `BenchmarkExistsCall`: Checking call existence
 
 ### Test Maintenance
 
@@ -502,6 +542,7 @@ go test -race ./...
 - Keep integration tests in sync with actual API behaviors
 - Document breaking changes in test files
 - Run full test suite before committing
+- Check benchmarks don't regress significantly
 
 ### Performance
 
