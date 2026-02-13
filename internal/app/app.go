@@ -86,6 +86,16 @@ func (a *App) Run(args []string) error {
 
 // executeRequest executes an HTTP request
 func (a *App) executeRequest(req *cli.ParsedRequest) error {
+	// Apply default headers from workspace config
+	if a.workspace.Config != nil && len(a.workspace.Config.DefaultHeaders) > 0 {
+		// CLI headers override config defaults
+		for key, val := range a.workspace.Config.DefaultHeaders {
+			if _, exists := req.Headers[key]; !exists {
+				req.Headers[key] = val
+			}
+		}
+	}
+
 	// Check for stdin body
 	if req.HasStdinBody || !isTerminal(os.Stdin) {
 		// Read from stdin
