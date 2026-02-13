@@ -1100,3 +1100,131 @@ func TestRunWithDeleteCommand(t *testing.T) {
 		t.Error("expected call to be deleted")
 	}
 }
+
+// TestExecuteRequestWithQueryParams tests request with query parameters
+func TestExecuteRequestWithQueryParams(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	req := &cli.ParsedRequest{
+		Method:        "GET",
+		URL:           "http://example.com/api",
+		Headers:       make(map[string]string),
+		QueryParams:   map[string]string{"page": "1", "limit": "10"},
+		Body:          "",
+		Dry:           true,
+		Save:          "test-call-params",
+		NoInteractive: true,
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the call was saved with query params
+	call, err := app.storage.Load("test-call-params")
+	if err != nil {
+		t.Fatalf("failed to load saved call: %v", err)
+	}
+	if len(call.QueryParams) != 2 {
+		t.Errorf("expected 2 query params, got %d", len(call.QueryParams))
+	}
+}
+
+// TestExecuteRequestWithMultipleHeaders tests request with multiple headers
+func TestExecuteRequestWithMultipleHeaders(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	req := &cli.ParsedRequest{
+		Method: "POST",
+		URL:    "http://example.com/api",
+		Headers: map[string]string{
+			"Content-Type":  "application/json",
+			"Authorization": "Bearer token123",
+			"X-Custom":      "value",
+		},
+		QueryParams:   make(map[string]string),
+		Body:          `{"test": "data"}`,
+		Dry:           true,
+		Save:          "test-call-headers",
+		NoInteractive: true,
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the call was saved with headers
+	call, err := app.storage.Load("test-call-headers")
+	if err != nil {
+		t.Fatalf("failed to load saved call: %v", err)
+	}
+	if len(call.Headers) != 3 {
+		t.Errorf("expected 3 headers, got %d", len(call.Headers))
+	}
+}
+
+// TestExecuteRequestWithBodyData tests request with body data
+func TestExecuteRequestWithBodyData(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	app := &App{
+		workspace: &config.Workspace{
+			Root: tmpDir,
+			Env:  make(map[string]string),
+		},
+		global:  &config.GlobalConfig{},
+		storage: storage.NewManager(tmpDir),
+		authMgr: auth.NewManager(tmpDir),
+		isTTY:   true,
+	}
+
+	bodyData := `{"name": "test", "value": 123}`
+	req := &cli.ParsedRequest{
+		Method:        "POST",
+		URL:           "http://example.com/api",
+		Headers:       make(map[string]string),
+		QueryParams:   make(map[string]string),
+		Body:          bodyData,
+		Dry:           true,
+		Save:          "test-call-body",
+		NoInteractive: true,
+	}
+
+	err := app.executeRequest(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify the call was saved with body
+	call, err := app.storage.Load("test-call-body")
+	if err != nil {
+		t.Fatalf("failed to load saved call: %v", err)
+	}
+	if call.Body != bodyData {
+		t.Errorf("expected body %q, got %q", bodyData, call.Body)
+	}
+}
