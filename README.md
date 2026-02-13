@@ -1,5 +1,11 @@
 # gosh - HTTPie CLI Alternative in Go
 
+[![CI](https://github.com/john-eevee/gosh/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/john-eevee/gosh/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/john-eevee/gosh/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/john-eevee/gosh/actions/workflows/codeql.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/go-1.21+-00ADD8?logo=go)](https://golang.org)
+[![Docker](https://img.shields.io/badge/docker-latest-blue?logo=docker)](https://github.com/john-eevee/gosh/pkgs/container/gosh)
+
 A lightweight, environment-aware HTTP CLI tool built with Go. Make HTTP requests from the command line with support for saved calls, templated paths, environment variables, and workspace-specific configurations.
 
 ## Features
@@ -20,9 +26,41 @@ A lightweight, environment-aware HTTP CLI tool built with Go. Make HTTP requests
 
 ## Installation
 
+### From Source
 ```bash
+git clone https://github.com/john-eevee/gosh.git
+cd gosh
 go build -o gosh ./cmd/gosh
-# Move gosh to your PATH
+sudo mv gosh /usr/local/bin/
+```
+
+### From GitHub Releases
+Download pre-built binaries for your platform from [releases](https://github.com/john-eevee/gosh/releases):
+
+```bash
+# macOS
+curl -L https://github.com/john-eevee/gosh/releases/download/v0.1.1/gosh-macos-amd64 -o gosh
+chmod +x gosh
+sudo mv gosh /usr/local/bin/
+
+# Linux
+curl -L https://github.com/john-eevee/gosh/releases/download/v0.1.1/gosh-linux-amd64 -o gosh
+chmod +x gosh
+sudo mv gosh /usr/local/bin/
+
+# Windows
+# Download from https://github.com/john-eevee/gosh/releases
+```
+
+### From Docker
+```bash
+docker pull ghcr.io/john-eevee/gosh:latest
+docker run --rm ghcr.io/john-eevee/gosh:latest get https://api.example.com
+```
+
+### Using Homebrew (coming soon)
+```bash
+brew install john-eevee/gosh/gosh
 ```
 
 ## Quick Start
@@ -366,24 +404,57 @@ Disable colors by piping output: `gosh get url | cat`
 ### Building from Source
 
 ```bash
+git clone https://github.com/john-eevee/gosh.git
 cd gosh
-go build -o gosh ./cmd/gosh
+make build
+# Binary is in bin/gosh
 ```
 
 ### Running Tests
 
 ```bash
-go test ./...
+make test          # Run all tests
+make coverage      # Generate coverage report
+make lint          # Run linters
+make all           # Format, lint, test, and build
 ```
+
+### Using Make
+
+```bash
+make help          # Show all available targets
+make install       # Install to $GOBIN
+make fmt           # Format code
+make vet           # Run go vet
+make clean         # Remove artifacts
+```
+
+See [Makefile](Makefile) for more targets and options.
+
+## CI/CD Pipeline
+
+This project uses GitHub Actions for:
+- **Automated Testing**: Runs on multiple platforms and Go versions
+- **Code Quality**: Linting and formatting checks
+- **Security**: Gosec vulnerability scanning and CodeQL analysis
+- **Coverage**: Code coverage tracking with Codecov
+- **Releases**: Automated multi-platform binary builds and Docker images
+
+See [CI_CD.md](CI_CD.md) for detailed pipeline documentation.
 
 ## Limitations & Future Work
 
+Current limitations:
 - Interactive prompts require TTY (use `--no-interactive` for piped input)
-- Bubbletea UI integration for enhanced interactive mode
-- Support for authentication presets (Basic, Bearer, Custom)
+
+Future enhancements:
+- Enhanced bubbletea UI for interactive mode
+- Global saved calls and credentials management
 - Response caching and history
-- Global saved calls (v2)
-- Session management and cookies
+- Session management and cookie handling
+- OAuth2/OIDC authentication support
+- WebSocket support
+- GraphQL query builder
 
 ## Comparison to HTTPie
 
@@ -400,8 +471,20 @@ go test ./...
 
 ## License
 
-MIT
+MIT - See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests.
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Code of Conduct
+
+Please see [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for our community standards.
+
+## Support
+
+- 📚 [Documentation](README.md)
+- 📋 [CI/CD Documentation](CI_CD.md)
+- 🐛 [Issues](https://github.com/john-eevee/gosh/issues)
+- 💬 [Discussions](https://github.com/john-eevee/gosh/discussions)
+- 🐳 [Docker Registry](https://github.com/john-eevee/gosh/pkgs/container/gosh)
